@@ -1,13 +1,13 @@
 package com.pipedev.twelvedata;
 
-import com.pipedev.twelvedata.model.data.CurrencyDetails;
-import com.pipedev.twelvedata.model.data.Exchange;
-import com.pipedev.twelvedata.model.data.MarketState;
-import com.pipedev.twelvedata.model.data.StockDetails;
+import com.pipedev.twelvedata.model.data.*;
+import com.pipedev.twelvedata.model.enums.QuoteIntervalEnum;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 
@@ -177,7 +177,6 @@ public class TwelveDataApi {
         return response.getBody();
     }
 
-    //Market State
     public List<MarketState> getMarketState() {
         var response = restTemplate.exchange(getUrl("/market_state?apikey={apikey}"),
                 HttpMethod.GET, getHttpEntity(),
@@ -189,6 +188,60 @@ public class TwelveDataApi {
         return response.getBody();
     }
 
+    public List<CurrencyDetails> getExchangeRate(String currencySymbol, LocalDateTime dateTime) {
+        var response = restTemplate.exchange(getUrl("/exchange_rate?symbol={currencySymbol}&date={date}&apikey={apikey}"),
+                HttpMethod.GET, getHttpEntity(),
+                new ParameterizedTypeReference<List<CurrencyDetails>>() {
+                },
+                currencySymbol,
+                dateTime != null ? dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "",
+                apiKey
+        );
+        handleResponse(response);
+        return response.getBody();
+    }
+
+    public ExchangeRate getRealTimePrice(String symbol) {
+        var response = restTemplate.exchange(getUrl("/price?symbol={symbol}&apikey={apikey}"),
+                HttpMethod.GET, getHttpEntity(),
+                new ParameterizedTypeReference<ExchangeRate>() {
+                },
+                symbol,
+                apiKey
+        );
+        handleResponse(response);
+        return response.getBody();
+    }
+
+    public ExchangeRate getCurrencyConversionRate(String symbol, String amount) {
+        var response = restTemplate.exchange(getUrl("/currency_conversion?symbol={symbol}&amount={amount}&apikey={apikey}"),
+                HttpMethod.GET, getHttpEntity(),
+                new ParameterizedTypeReference<ExchangeRate>() {
+                },
+                symbol,
+                amount,
+                apiKey
+        );
+        handleResponse(response);
+        return response.getBody();
+    }
+
+    public SymbolQuote getQuote(String symbol, QuoteIntervalEnum interval, String exchange, String country, String volumeTimePeriod, String type) {
+        var response = restTemplate.exchange(getUrl("/quote?symbol={symbol}&interval={interval}&exchange={exchange}&country={country}&volume_time_period={volume_time_period}&type={type}&apikey={apikey}"),
+                HttpMethod.GET, getHttpEntity(),
+                new ParameterizedTypeReference<SymbolQuote>() {
+                },
+                symbol,
+                interval.getValue(),
+                Objects.requireNonNullElse(exchange, ""),
+                Objects.requireNonNullElse(country, ""),
+                Objects.requireNonNullElse(volumeTimePeriod,""),
+                Objects.requireNonNullElse(type,""),
+                apiKey
+        );
+        handleResponse(response);
+        return response.getBody();
+    }
 
     private String getUrl(String path) {
         return String.format("%s/%s", url, path);
@@ -199,7 +252,7 @@ public class TwelveDataApi {
         if (response.getStatusCode() == HttpStatus.OK) {
             return;
         }
-        if(response.getBody() == null)
+        if (response.getBody() == null)
             throw new RuntimeException(String.format("Error while calling 12Data API. Status code: %s", response.getStatusCode()));
         else
             throw new RuntimeException(String.format("Error while calling 12Data API. Status code: %s, message: %s",
