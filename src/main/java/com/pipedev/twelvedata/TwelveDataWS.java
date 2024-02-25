@@ -34,6 +34,14 @@ public class TwelveDataWS {
         wsConnection.connect();
     }
 
+    public void close() {
+        wsConnection.close();
+    }
+
+    public void restart() {
+        wsConnection.restart();
+    }
+
     public void subscribe(List<String> symbols) {
         SendMessage message = new SendMessage();
         message.setAction(MessageActionEnum.SUBSCRIBE);

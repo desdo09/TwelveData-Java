@@ -58,6 +58,21 @@ public class WSConnection {
         }
     }
 
+    public void close() {
+        try {
+            session.close();
+            if(timer != null)
+                timer.cancel();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void restart() {
+        close();
+        connect();
+    }
+
     private void onMessage(String message) {
         try {
             log.debug("Received message: {}", message);
