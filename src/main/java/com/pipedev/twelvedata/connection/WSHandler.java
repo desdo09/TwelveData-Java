@@ -1,5 +1,6 @@
 package com.pipedev.twelvedata.connection;
 
+import com.pipedev.twelvedata.model.websocket.SessionStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketHandler;
@@ -14,9 +15,9 @@ public class WSHandler implements WebSocketHandler {
 
     private Boolean isConnected = false;
     private final Consumer<String> messageConsumer;
-    private final BiConsumer<WebSocketSession, Boolean> sessionConsumer;
+    private final Consumer<SessionStatus> sessionConsumer;
 
-    public WSHandler(Consumer<String> messageConsumer, BiConsumer<WebSocketSession, Boolean> sessionConsumer) {
+    public WSHandler(Consumer<String> messageConsumer, Consumer<SessionStatus> sessionConsumer) {
         this.messageConsumer = messageConsumer;
         this.sessionConsumer = sessionConsumer;
     }
@@ -24,7 +25,7 @@ public class WSHandler implements WebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         isConnected = true;
-        sessionConsumer.accept(session, true);
+        sessionConsumer.accept(new SessionStatus(session, true));
     }
 
     @Override
@@ -36,13 +37,13 @@ public class WSHandler implements WebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         isConnected = false;
-        sessionConsumer.accept(session, false);
+        sessionConsumer.accept(new SessionStatus(session, false, exception, exception.getMessage()));
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
         isConnected = false;
-        sessionConsumer.accept(session, false);
+        sessionConsumer.accept(new SessionStatus(session, false, closeStatus, closeStatus.getReason()));
     }
 
     @Override

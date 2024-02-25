@@ -7,6 +7,9 @@ import com.pipedev.twelvedata.model.enums.MessageActionEnum;
 import com.pipedev.twelvedata.model.enums.ServerEventEnum;
 import com.pipedev.twelvedata.model.utils.JsonUtils;
 import com.pipedev.twelvedata.model.websocket.SendMessage;
+import com.pipedev.twelvedata.model.websocket.SessionStatus;
+import jakarta.websocket.ContainerProvider;
+import jakarta.websocket.WebSocketContainer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -24,7 +27,6 @@ import java.util.function.Consumer;
 @Slf4j
 public class WSConnection {
 
-    //wss://ws.twelvedata.com/v1/quotes/price?apikey=e39059603c924781844e66ddc256cf34
     private final String url;
     private final BiConsumer<Object, ServerEventEnum> messageListener;
     private final Consumer<Boolean> connectionListener;
@@ -43,7 +45,9 @@ public class WSConnection {
 
     public void connect() {
         this.timer = new Timer();
-        WebSocketClient client = new StandardWebSocketClient();
+        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+        container.setDefaultMaxTextMessageBufferSize(512*1024);
+        WebSocketClient client = new StandardWebSocketClient(container);
         var session = client.execute(new WSHandler(this::onMessage, this::onSession), this.url);
         session.join();
     }
@@ -99,9 +103,9 @@ public class WSConnection {
         }
     }
 
-    private void onSession(WebSocketSession handler, Boolean isConnected) {
-        if(isConnected) {
-            this.session = handler;
+    private void onSession(SessionStatus session) {
+        if(session.isConnected()) {
+            this.session = session.getSession();
             timer.schedule(new TimerTask() {
                 @Override
                 public void run() {
@@ -110,6 +114,7 @@ public class WSConnection {
             }, TimeUnit.SECONDS.toMillis(10), TimeUnit.SECONDS.toMillis(10));
 
         }else {
+            log.warn("Server disconnected reason: {} ", session.getReason());
             this.session = null;
             timer.cancel();
             timer = null;
@@ -118,7 +123,7 @@ public class WSConnection {
                 this.connect();
             });
         }
-        connectionListener.accept(isConnected);
+        connectionListener.accept(session.isConnected());
     }
 
     private String handleErrorMessages(JsonNode messageNode) {
